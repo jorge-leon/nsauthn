@@ -32,7 +32,7 @@ proc authn::ldapBind {Config Username Password} {
     set Server [ns_info server]
     set ConfigSection ns/server/$Server/authn/ldap
     set LogLevel       [ns_config $ConfigSection loglevel debug]
-    append ConfigSection / $Config
+    set ConfigSection ns/authn/ldap/$Config
     set Pool [ns_config $ConfigSection pool ""]
     if {![string length $Pool]} {
 	error "no pool configured: $ConfigSection"
