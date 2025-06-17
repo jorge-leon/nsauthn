@@ -12,7 +12,7 @@ proc authn::passwd {Method URL User Password Remote CheckedURL {Config passwd} {
     if {![matchURL $URL $CheckedURL]} {return UNAUTHORIZED}
 
     set Server [ns_info server]
-    set ConfigSection ns/server/$Server/module/authn/passwd
+    set ConfigSection ns/server/$Server/authn/passwd
     set LogLevel       [ns_config $ConfigSection loglevel debug]
     set LogCredentials [ns_config $ConfigSection logcredentials false]
     

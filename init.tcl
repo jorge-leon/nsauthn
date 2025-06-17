@@ -75,16 +75,16 @@ proc authn::initPasswdCache Config {
 }
 
 proc authn::readPasswd Config {
-    # Read passwd file config ns/module/autn/passwd/$Config into
+    # Read passwd file config ns/authn/passwd/$Config into
     # nsv_dict authn passwd $Config
     
-    set Section ns/module/authn/passwd/$Config
+    set Section ns/authn/passwd/$Config
     set Path [file join conf [ns_config $Section passwd passwd]]
     
     if {![ns_filestat $Path Stat]} {
 	error "nsauthn: cannot stat $Config passwd file: $Path"
     }
-    set LogLevel [ns_config ns/server/[ns_info server]/module/authn/passwd loglevel debug]
+    set LogLevel [ns_config ns/server/[ns_info server]/authn/passwd loglevel debug]
     set Fd [open $Path]
     ns_log $LogLevel "nsauthn: reading $Config passwd file from $Path"
     set Count 0
@@ -106,7 +106,7 @@ proc authn::getHash {User Config} {
     # from ns/module/authn/passwd/$Config. If reloading fails an empty
     # string is returned.
     
-    set Section ns/module/authn/passwd/$Config
+    set Section ns/authn/passwd/$Config
     set Path [file join conf [ns_config $Section passwd passwd]]
     if {![ns_filestat $Path Stat]} {
 	ns_log error "nsauthn: cannot stat $Config passwd file: $Path"
@@ -120,7 +120,7 @@ proc authn::getHash {User Config} {
 }
 
 proc authn::initPasswd Server {
-    set Section ns/server/[ns_info server]/module/authn/passwd
+    set Section ns/server/[ns_info server]/authn/passwd
     set LogLevel [ns_config $Section loglevel debug]
     foreach {Key Map} [ns_set array [ns_configsection $Section]] {
         if {$Key ne "map"} continue
@@ -134,7 +134,7 @@ proc authn::initPasswd Server {
 # ldap initialization
 
 proc authn::initLdap Server {
-    set Section ns/server/[ns_info server]/module/authn/ldap
+    set Section ns/server/[ns_info server]/authn/ldap
     set LogLevel [ns_config $Section loglevel debug]
     foreach {Key Map} [ns_set array [ns_configsection $Section]] {
         if {$Key ne "map"} continue
@@ -151,7 +151,7 @@ proc authn::init {} {
 	passwd initPasswd
 	ldap initLdap
     } {
-	set Section ns/server/[ns_info server]/module/authn/$Type
+	set Section ns/server/[ns_info server]/authn/$Type
 	set Set [ns_configsection $Section]
 	if {[ns_set find $Set map]!=-1} {
 	    ns_log notice "init $Type"

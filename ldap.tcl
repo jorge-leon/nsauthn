@@ -12,7 +12,7 @@ proc authn::ldap {Method URL User Password Remote CheckedURL {Config default} {O
     if {![matchURL $URL $CheckedURL]} {return UNAUTHORIZED}
 
     set Server [ns_info server]
-    set ConfigSection ns/server/$Server/module/authn/ldap
+    set ConfigSection ns/server/$Server/authn/ldap
     set LogLevel       [ns_config $ConfigSection loglevel debug]
     set LogCredentials [ns_config $ConfigSection logcredentials false]
     
@@ -30,7 +30,7 @@ proc authn::ldap {Method URL User Password Remote CheckedURL {Config default} {O
 proc authn::ldapBind {Config Username Password} {
 
     set Server [ns_info server]
-    set ConfigSection ns/server/$Server/module/authn/ldap
+    set ConfigSection ns/server/$Server/authn/ldap
     set LogLevel       [ns_config $ConfigSection loglevel debug]
     append ConfigSection / $Config
     set Pool [ns_config $ConfigSection pool ""]
