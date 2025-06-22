@@ -14,7 +14,7 @@ proc authn::session {Stage args} {
     # - If there is no session cookie redirect to the registered auth location.
     # - Else signal a respective error.
     #
-    # Register as preauth filter.
+    # Checks if session cookie is present and valid.
 
     if {$Stage ne "preauth"} {
 	error "invalid configuration, called in stage: $Stage"
@@ -111,10 +111,6 @@ proc authn::expired Session {
 	error "session does not have expiry"
     }
     return [expr {[nsv_dict get authn session $Session expiry] > [clock seconds]}]
-}
-
-proc authn::destroySession Session {
-    nsv_dict unset authn session $Session
 }
 
 proc authn:getNewSessionId {} {
