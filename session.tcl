@@ -16,6 +16,8 @@ proc authn::session {Stage args} {
     #
     # Checks if session cookie is present and valid.
 
+    ns_log notice [info level 0]
+    
     if {$Stage ne "preauth"} {
 	error "invalid configuration, called in stage: $Stage"
     }
@@ -29,13 +31,11 @@ proc authn::session {Stage args} {
     }
 
     set Session [getSession]
-    if {![string length $Session]} {
-	ns_returnredirect $Location; # Redirect to auth location to obtain a session
-	return filter_return
-    }
-    if {![nsv_dict exists authn session $Session]} {
-	ns_returnbadrequest "Invalid session"
-	ns_log error "session does not exist: $Session"
+
+    ns_log notice "Session: $Session"
+    
+    if {![string length $Session] || ![nsv_dict exists authn session $Session]} {
+	ns_returnredirect $Location?action=renew; # Redirect to auth location to obtain a session
 	return filter_return
     }
     if {![nsv_dict exists authn session $Session username]} {
@@ -44,39 +44,54 @@ proc authn::session {Stage args} {
 	return filter_return
     }
     if {[expired $Session]} {
+	ns_log notice "session expired: $Session"
 	ns_returnredirect $Location; # Redirect to auth location to renew current session
 	return filter_return
     }
+
+    ns_log notice "pass"
     
     set Auth [ns_conn auth]
     ns_set update $Auth username [nsv_dict get authn session $Session username]
     ns_set update $Auth password ""
     ns_set update $Auth AuthMethod Session
-    ns_set update $Auth session $Sesssion
+    ns_set update $Auth session $Session
     return filter_ok
 }
 
-proc auth::checkSession {} {
+proc authn::checkSession Stage {
     # preauth filter for auth location
     #
     # - If no or a valid session cookie is found pass to next filter (or auth, then postauth)
     # - If an expired session cookie is found delete the session, the session cookie and reauthenticate
 
-    set Session [getSession]
+    ns_log notice [info level 0]
+    
+    if {$Stage ne "preauth"} {
+	error "invalid configuration, called in stage: $Stage"
+    }
     set Form [ns_conn form]
     set Action [ns_set get $Form action ""]
+
+    set Session [getSession]
+
+    ns_log notice "Session: $Session, Form: [ns_set array $Form]"
     
-    if {[string length $Session] && ([expired $Session] || $Action in {renew logout})} {
+    if {([string length $Session] && ([expired $Session]) || $Action in {renew logout})} {
+	ns_log notice "Session: $Session, Form: [ns_set array $Form]"
+    
 	destroySession $Session
+	ns_log notice "prepare header to delete cookie"
 	# Note: Should we rather create a new empty ns_set?
 	set Headers [ns_conn outputheaders]
 	set SessionCookie [ns_config ns/server/[ns_info server]/authn/session cookie nsauthn_session]
 	set Path [ns_config ns/server/[ns_info server]/authn/session path /]
 	ns_set put $Headers "Set-Cookie" "$SessionCookie=;  Max-Age=0; path=$Path"
-	reauthenticate $Headers
+	reauthenticate
 	return filter_return
     }
-    
+
+    ns_log notice "Session valid: $Session"
     return filter_ok
 }
 
@@ -87,14 +102,16 @@ proc authn::newSession {} {
     # If there is already a session cookie set, destroy the session.
 
     set Auth [ns_conn auth]
-    set Username [ns_set $Auth get username ""]
-    set Scheme [ns_set $Auth get AuthMethod ""]
+    set Username [ns_set get $Auth Username ""]
+    set Scheme [ns_set get $Auth AuthMethod ""]
     set Headers [ns_conn outputheaders]
 
+    ns_log notice [ns_set array $Auth]
+
     # Note: is $AuthMethod case sensitive?
-    if {![string length $Username] || $AuthMethod ne "Basic"} {
+    if {![string length $Username] || $Scheme ne "Basic"} {
 	ns_log error "auth method incorrect or username empty: `$Scheme', `$Username'"
-	reauthenticate $Headers
+	reauthenticate
 	return filter_return
     }
     set Session [getSession]
@@ -103,8 +120,8 @@ proc authn::newSession {} {
     }
     set Session [getNewSessionId]
     nsv_dict set authn session $Session username $Username
-    set Expiry [ns_config ns/server/[ns_info server]/authn/session expiry 3600]
-    nsv_dict set authn session $Session expire [expr {[clock seconds]+$Seconds}]
+    set TTL [ns_config ns/server/[ns_info server]/authn/session ttl 3600]
+    nsv_dict set authn session $Session expiry [expr {[clock seconds]+$TTL}]
 
     set SessionCookie [ns_config ns/server/[ns_info server]/authn/session cookie nsauthn_session]
     set Path [ns_config ns/server/[ns_info server]/authn/session path /]
@@ -128,10 +145,15 @@ proc authn::getSession {} {
 }
 
 proc authn::expired Session {
+
+    ns_log notice [info level 0]
+
+    ns_log notice "Session data: [nsv_dict get authn session $Session], now: [clock seconds]"
+    
     if {![nsv_dict exists authn session $Session expiry]} {
 	error "session does not have expiry"
     }
-    return [expr {[nsv_dict get authn session $Session expiry] > [clock seconds]}]
+    return [expr {[clock seconds] > [nsv_dict get authn session $Session expiry]}]
 }
 
 proc authn::getNewSessionId {} {
@@ -139,7 +161,7 @@ proc authn::getNewSessionId {} {
     set Count 6
     set Session ""
     while {[incr Count -1]} {
-	set NewSession [ns_md5 string [ns_rand 2147483647]]
+	set NewSession [ns_md5 [ns_rand 2147483647]]
 	if {![nsv_dict exists authn session $NewSession]} {
 	    set Session $NewSession
 	    break
@@ -151,8 +173,18 @@ proc authn::getNewSessionId {} {
     return $Session
 }
 
-proc authn::reauthenticate Headers {
+proc authn::destroySession Session {
+    ns_log notice [info level 0]
+    if {![string length $Session]} return
+    nsv_dict unset authn session $Session
+}
+
+proc authn::reauthenticate {} {
+
+    ns_log notice [info level 0]
+    
     set Realm [ns_config ns/server/[ns_info server]/authn/session realm nsauthn_session]
+    set Headers [ns_conn outputheaders]
     ns_set put $Headers "WWW-Authenticate" "Basic realm=\"$Realm\", charset=\"UTF-8\""
-    ns_respond -status 401 -type text/plain -headers $Headers -string "Authenticate to get a valid session"
+    ns_respond -status 401 -type text/plain -string "Authenticate to get a valid session"
 }

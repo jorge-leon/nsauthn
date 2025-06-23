@@ -8,8 +8,10 @@
 
 proc authn::ldap {Method URL User Password Remote CheckedURL {Config default} {Optional true}} {
     # Check user credentials against ldap
+
+    ns_log notice [info level 0]
     
-    if {![matchURL $URL $CheckedURL]} {return UNAUTHORIZED}
+    if {![matchURL $URL $CheckedURL]} {return OK}
 
     set Server [ns_info server]
     set ConfigSection ns/server/$Server/authn/ldap

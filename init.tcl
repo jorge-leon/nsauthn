@@ -21,6 +21,8 @@ proc authn::matchURL {URL Match} {
     # Match:
     # /path/  ..   /path/* or /path exact
     # /path*  ..   string match $URL
+
+    ns_log notice [info level 0]
     
     if {[string index $Match end] ne "/"} {return [string match $Match $URL]}
     if {[string trimright $URL /] eq [string range $Match 0 end-1]} {return true}

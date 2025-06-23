@@ -8,8 +8,10 @@
 
 proc authn::passwd {Method URL User Password Remote CheckedURL {Config passwd} {Optional true}} {
     # Check user credentials against a passwd file.
-    
-    if {![matchURL $URL $CheckedURL]} {return UNAUTHORIZED}
+
+    ns_log notice [info level 0]
+
+    if {![matchURL $URL $CheckedURL]} {return OK}
 
     set Server [ns_info server]
     set ConfigSection ns/server/$Server/authn/passwd
